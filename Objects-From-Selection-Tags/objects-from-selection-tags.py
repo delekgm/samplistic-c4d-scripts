@@ -1,5 +1,26 @@
 import c4d
 
+def move_axis_to_center(obj):
+    """ Move the axis of the object to the geometric center of its points. """
+    if not obj:
+        return
+
+    points = obj.GetAllPoints()
+    if not points:
+        return
+    
+    # Calculate the center of all points
+    center = sum((c4d.Vector(p) for p in points), c4d.Vector(0, 0, 0)) / len(points)
+    
+    # Move all points so the object's axis is at the calculated center
+    matrix = c4d.Matrix()
+    matrix.off = center
+    obj.SetMg(matrix)
+    for i, point in enumerate(points):
+        obj.SetPoint(i, point - center)
+    
+    obj.Message(c4d.MSG_UPDATE)
+
 def split_object_by_selection_tags(object, doc):
     if not object:
         print("No valid object provided.")
@@ -47,6 +68,7 @@ def split_object_by_selection_tags(object, doc):
         # The SPLIT command should create a new object in the document; find it
         split_object = new_object.GetNext()
         if split_object:
+            move_axis_to_center(split_object)  # Adjust the axis of the new object
             new_objects.append(split_object)
             doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, split_object)
 
