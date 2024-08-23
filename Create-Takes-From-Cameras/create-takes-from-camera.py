@@ -1,5 +1,5 @@
 # 1057516 is type for RS camera
-import c4d
+import c4d # type: ignore
 
 def create_takes_for_cameras():
     # Access the active document

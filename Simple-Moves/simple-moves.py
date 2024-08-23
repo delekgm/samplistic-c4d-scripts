@@ -1,7 +1,7 @@
 # Libraries
-import c4d
+import c4d # type: ignore
 import math
-from c4d import utils as u
+from c4d import utils as u # type: ignore
 import logging
 from logging import traceback
 

@@ -1,4 +1,4 @@
-import c4d
+import c4d # type: ignore
 
 def move_axis_to_center(obj):
     """ Move the axis of the object to the geometric center of its points. """
