@@ -30,7 +30,10 @@ def checknulls(root, md, link, selection):
     if not root: return
 
     nl = root.GetDown()
-    if not nl: return
+    if not nl:
+        nl = c4d.BaseObject(c4d.Onull)
+        nl[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = c4d.ID_BASELIST_ICON_COLORIZE_MODE_CUSTOM
+        nl.InsertUnder(root)
 
     name = link.GetName()
     if selection:
@@ -120,3 +123,4 @@ def main():
         if op[c4d.ID_USERDATA,3]:
             children[i][c4d.ID_BASEOBJECT_USECOLOR] = 1
             children[i][c4d.ID_BASEOBJECT_COLOR] = carr[i]
+            children[i][c4d.ID_BASELIST_ICON_COLOR] = carr[i]
