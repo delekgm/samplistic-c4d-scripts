@@ -14,8 +14,9 @@ Change log:
 """
 
 import c4d # type: ignore
-from c4d import utils as u # type: ignore
-from c4d import gui # type: ignore
+# from c4d import utils as u # type: ignore
+# from c4d import gui # type: ignore
+from c4d.modules import mograph as mo # type: ignore
 
 
 def CreateUserDataGroup(obj, name, columns=1, parentGroup=None):
@@ -48,7 +49,7 @@ def CreateUserDataCheckbox(obj, name, val=1, parentGroup=None):
     return element
 
 
-def CreateUserDataLink(obj, name, link, parentGroup=None, shortname=None):
+def CreateUserDataLink(obj, name, link=None, parentGroup=None, shortname=None):
     if obj is None:
         return False
     if shortname is None: 
@@ -66,14 +67,14 @@ def CreateUserDataLink(obj, name, link, parentGroup=None, shortname=None):
     return element
 
 
-def CreatePythonTag(obj):
+def CreatePythonTag(obj, link_object=None):
     pyTag = c4d.BaseTag(1022749)
     pyTag.SetName("Mograph to Nulls")
     
     # # Get icon
-    scriptPath = __file__
-    iconPath = scriptPath.rsplit('.', 1)[0]+".tif"
-    pyTag[c4d.ID_BASELIST_ICON_FILE] = iconPath
+    # scriptPath = __file__
+    # iconPath = scriptPath.rsplit('.', 1)[0]+".tif"
+    # pyTag[c4d.ID_BASELIST_ICON_FILE] = iconPath
     
     # Insert tag to active object
     obj.InsertTag(pyTag)
@@ -81,7 +82,7 @@ def CreatePythonTag(obj):
     
     # General Settings
     groupIDSettings = CreateUserDataGroup(pyTag, "Settings") # ID 1
-    CreateUserDataLink(pyTag, "Mograph Data", None, groupIDSettings) # ID 2
+    CreateUserDataLink(pyTag, "Mograph Data", link_object, groupIDSettings) # ID 2
     CreateUserDataCheckbox(pyTag, "Use Color", 1, groupIDSettings) # ID 3
 
     # Python tag code
@@ -212,26 +213,48 @@ def main():
     # ---------------------------------------------------------------------
     return True
 
-
-def main():
-    doc.StartUndo() # type: ignore
-    selection = doc.GetActiveObject() # type: ignore
-    if not selection:
+def make_null():
         new_null = c4d.BaseObject(c4d.Onull)
         new_null.SetName("Mograph to Nulls Null")
 
         doc.InsertObject(new_null) # type: ignore
 
         doc.SetActiveObject(new_null, c4d.SELECTION_NEW) # type: ignore
-        # print("No active object, please select an object first")
+        return new_null
 
-        selection = new_null
-        # doc.EndUndo()
-        # return
-    CreatePythonTag(selection)
+def check_mo_data(obj):
+    md = mo.GeGetMoData(obj)
+    if md is None:
+        return False
+
+    # Check the count of MoGraph elements
+    count = md.GetCount()
+    if count == 0:
+        return False
+
+    return True
+    
+def main():
+    molist = [1018544, 1018545, 1018791, 1036557]
+    
+    doc.StartUndo() # type: ignore
+    selection = doc.GetActiveObject() # type: ignore
+    if not selection:
+        selection = make_null()
+        CreatePythonTag(selection)
+
+    elif selection.GetType() in molist:
+        link_object = selection
+        if check_mo_data(link_object):
+            selection = make_null()
+            CreatePythonTag(selection, link_object)
+        else:
+            c4d.gui.MessageDialog("No MoGraph data found in the object. Please add MoGraph data to the object first.")
+            
+    else:
+        CreatePythonTag(selection)
     doc.EndUndo() # type: ignore
     c4d.EventAdd()
-
 
 if __name__ == '__main__':
     main()
