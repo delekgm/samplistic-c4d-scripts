@@ -217,9 +217,17 @@ def main():
     doc.StartUndo() # type: ignore
     selection = doc.GetActiveObject() # type: ignore
     if not selection:
-        print("No active object, please select an object first")
-        doc.EndUndo() # type: ignore
-        return
+        new_null = c4d.BaseObject(c4d.Onull)
+        new_null.SetName("Mograph to Nulls Null")
+
+        doc.InsertObject(new_null) # type: ignore
+
+        doc.SetActiveObject(new_null, c4d.SELECTION_NEW) # type: ignore
+        # print("No active object, please select an object first")
+
+        selection = new_null
+        # doc.EndUndo()
+        # return
     CreatePythonTag(selection)
     doc.EndUndo() # type: ignore
     c4d.EventAdd()
