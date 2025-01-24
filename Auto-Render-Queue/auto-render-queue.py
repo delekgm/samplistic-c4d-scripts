@@ -16,7 +16,7 @@ Usage:
 4. If you do not have a render path set, the script will use the document path as the output path for only the beauty pass.
 
 Dependencies:
-    This script uses Python's built-in `webbrowser` module.
+    None
 """
 
 
@@ -39,6 +39,11 @@ def convert_to_absolute_path(path, base_path):
 
 def directory_exists(path):
     """Ensures that the specified directory exists. If it doesn't, creates it."""
+    # ADD LOGIC HERE FOR TOKENS IN PATH
+    path_parts = path.split('$', 1)
+    if len(path_parts) > 1:
+        path = path_parts[0]
+
     if not os.path.exists(path):
         try:
             os.makedirs(path)
