@@ -100,15 +100,17 @@ def CreateUserDataPercentSlider(obj, name, val=0, min=0, max=1, parentGroup=None
     obj[element] = val
     return element
 
+def getIconPath():
+    scriptPath = __file__
+    iconPath = scriptPath.rsplit('.', 1)[0] + ".tif"
+    return iconPath
 
 def CreatePythonTag(obj):
     pyTag = c4d.BaseTag(1022749)
     pyTag.SetName("Simple Moves")
     
     # Get icon
-    scriptPath = __file__
-    iconPath = scriptPath.rsplit('.', 1)[0]+".tif"
-    pyTag[c4d.ID_BASELIST_ICON_FILE] = iconPath
+    pyTag[c4d.ID_BASELIST_ICON_FILE] = getIconPath()
     
     obj.InsertTag(pyTag)
     doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, pyTag) # type: ignore
@@ -277,9 +279,18 @@ def main():
     doc.StartUndo()
     selection = doc.GetActiveObject()
     if not selection:
-        print("No active object, please select an object first")
-        doc.EndUndo()
-        return
+        new_null = c4d.BaseObject(c4d.Onull)
+        new_null.SetName("Simple Moves Null")
+        new_null[c4d.ID_BASELIST_ICON_FILE] = getIconPath()
+
+        doc.InsertObject(new_null)
+
+        doc.SetActiveObject(new_null, c4d.SELECTION_NEW)
+        # print("No active object, please select an object first")
+        
+        selection = new_null
+        # doc.EndUndo()
+        # return
     CreatePythonTag(selection)
     doc.EndUndo()
     c4d.EventAdd()
