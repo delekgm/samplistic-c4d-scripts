@@ -1,11 +1,28 @@
-# Libraries
-import c4d # type: ignore
+import c4d
+from c4d import utils as u
 import math
-from c4d import utils as u # type: ignore
 import logging
 from logging import traceback
 
 # Functions
+def setMoveMode():
+    udc = op.GetUserDataContainer()
+    for descId, bc in udc:
+        if descId[1].id == 3:
+            if op[c4d.ID_USERDATA,2] == 0:
+                bc[c4d.DESC_HIDE] = False
+                op.SetUserDataContainer(descId, bc)
+            else:
+                bc[c4d.DESC_HIDE] = True
+                op.SetUserDataContainer(descId, bc)
+        if descId[1].id == 4:
+            if op[c4d.ID_USERDATA,2] == 1:
+                bc[c4d.DESC_HIDE] = False
+                op.SetUserDataContainer(descId, bc)
+            else:
+                bc[c4d.DESC_HIDE] = True
+                op.SetUserDataContainer(descId, bc)
+
 def SetGlobalPosition(obj, mat1, mat2, factor):
     p1 = mat1.off # Get 1's position
     p2 = mat2.off # Get 2's position
@@ -37,9 +54,7 @@ def SetGlobalRotation(obj, mat1, mat2, factor):
 
     m = obj.GetMg() # Get global matrix
     pos = m.off # Get offset vector
-    scale = c4d.Vector( m.v1.GetLength(), # Get scale
-                        m.v2.GetLength(),
-                        m.v3.GetLength())
+    scale = c4d.Vector( m.v1.GetLength(), m.v2.GetLength(), m.v3.GetLength()) # Get scale
     m = u.HPBToMatrix(rot) # Set rotation
     m.off = pos # Set offset vector
     m.v1 = m.v1.GetNormalized() * scale.x # Set scale
@@ -60,70 +75,88 @@ def SetBasicRotation(target, obj1, obj2, factor):
 
     target.SetRelRot(c4d.Vector(mixH, mixP, mixB)) # Set rotation on target object
 
+def clean_inexclude_userdata(op, userdata_id):
+    """
+    Cleans an InExcludeData user data field by removing deleted (None) objects.
+
+    Parameters:
+        op (c4d.BaseTag or BaseObject): The object with the User Data.
+        userdata_id (int): The ID of the User Data field (the InExcludeData field).
+
+    Returns:
+        list: A list of valid (non-None) objects from the cleaned InExcludeData.
+    """
+    doc = c4d.documents.GetActiveDocument()
+    excl_data = op[userdata_id]
+
+    if not isinstance(excl_data, c4d.InExcludeData):
+        raise TypeError("User data at ID {} is not an InExcludeData".format(userdata_id))
+
+    clean_data = c4d.InExcludeData()
+    valid_objects = []
+
+    for i in range(excl_data.GetObjectCount()):
+        obj = excl_data.ObjectFromIndex(doc, i)
+        if obj is not None:
+            flags = excl_data.GetFlags(i)
+            clean_data.InsertObject(obj, flags)
+            valid_objects.append(obj)
+
+    if clean_data.GetObjectCount() != excl_data.GetObjectCount():
+        op[userdata_id] = clean_data
+        c4d.EventAdd()  # Update the UI and scene
+
+    return valid_objects
+
+
 def main():
-    try: # Try to execute following sctipt
-        op.SetName("Simple Moves")
-        mode = op[c4d.ID_USERDATA,8] # User Data: Mode
-        mixA = op[c4d.ID_USERDATA,1] # User Data: Mix(SimpleMoves)
-        mixB = op[c4d.ID_USERDATA,9] # User Data: Mix(Total)
-        pos = op[c4d.ID_USERDATA,4] # User Data: Position
-        scl = op[c4d.ID_USERDATA,5] # User Data: Scale
-        rot = op[c4d.ID_USERDATA,6]
-        rotMode = op[c4d.ID_USERDATA, 11] # User Data: Rotation
-        objects = op[c4d.ID_USERDATA,2] # User Data: Target list
+    try:
+        # Read in user data
+        mode = op[c4d.ID_USERDATA,2] # User Data: Mode
+        mixA = op[c4d.ID_USERDATA,3] # User Data: Mix(SimpleMoves)
+        mixB = op[c4d.ID_USERDATA,4] # User Data: Mix(Total)
+        pos = op[c4d.ID_USERDATA,7] # User Data: Position
+        scl = op[c4d.ID_USERDATA,8] # User Data: Scale
+        rot = op[c4d.ID_USERDATA,9] # User Data: Rotation
+        rotMode = op[c4d.ID_USERDATA, 10] # User Data: Rotation Mode
+        user_data_id = c4d.ID_USERDATA, 5
+        objects = clean_inexclude_userdata(op, user_data_id) # User Data: Target list
 
-        # Handling the User Data
-        udc = op.GetUserDataContainer() # Get user data container
-        for descId, bc in udc:
-            # Single line
-            if descId[1].id == 1:
-                if op[c4d.ID_USERDATA,8] == 0:
-                    bc[c4d.DESC_HIDE] = False
-                    op.SetUserDataContainer(descId, bc)
-                else:
-                    bc[c4d.DESC_HIDE] = True
-                    op.SetUserDataContainer(descId, bc)
-            if descId[1].id == 9:
-                if op[c4d.ID_USERDATA,8] == 1:
-                    bc[c4d.DESC_HIDE] = False
-                    op.SetUserDataContainer(descId, bc)
-                else:
-                    bc[c4d.DESC_HIDE] = True
-                    op.SetUserDataContainer(descId, bc)
-
+        # Set mode to Simple Moves or Total
+        setMoveMode()
+        # Driver code
         obj = op.GetObject() # Get object
-        array = [] # Initialize a list for targets
-        cnt = objects.GetObjectCount() # Get targets count
-        for i in range(0, cnt): # Iterate through targets
-            array.append(objects.ObjectFromIndex(doc, i)) # Add target to the list
-        if mode == 0: # If 'Mode' is 'SimpleMoves'
-            data = mixA
-        else: # If 'Mode' is 'Total'
-            data = u.RangeMap(mixB, 0, 1, 0, cnt-1, True)
+        array = objects # Initialize a list for targets
+        cnt = len(array) # Get targets count
 
-        i = int(math.floor(data)) # Calculate current target id
-        if i < cnt-1: # If target id is less than targets count
-            mat_a = array[i].GetMg() # Get A target's global matrix
-            mat_b = array[i+1].GetMg() # Get B target's global matrix
+        if cnt > 0:
+            if mode == 0: # If 'Mode' is 'SimpleMoves'
+                data = mixA
+            else: # If Mode is Total
+                data = u.RangeMap(mixB, 0, 1, 0, cnt-1, True)
+            i = int(math.floor(data)) # Calculate current target id
+            if i < cnt-1: # If target id is less than targets count
+                mat_a = array[i].GetMg() # Get A target's global matrix
+                mat_b = array[i+1].GetMg() # Get B target's global matrix
 
-            obj1_ = array[i] # Get object for basic rotation
-            obj2_ = array[i + 1]
-        else: # Otherwise
-            mat_a = array[-1].GetMg() # A target is the last target, get global matrix
-            mat_b = array[-1].GetMg() # B target is the last target, get global matrix
+                obj1_ = array[i] # Get object for basic rotation
+                obj2_ = array[i + 1]
+            else: # Otherwise
+                mat_a = array[-1].GetMg() # A target is the last target, get global matrix
+                mat_b = array[-1].GetMg() # B target is the last target, get global matrix
 
-            obj1_ = array[-1] # Get object for basic rotation
-            obj2_ = array[-1]
-        mix = data % 1 # Calculate mix value
+                obj1_ = array[-1] # Get object for basic rotation
+                obj2_ = array[-1]
+            mix = data % 1 # Calculate mix value
 
-        if pos == True:
-            SetGlobalPosition(obj, mat_a, mat_b, mix) # Set position
-        if scl == True:
-            SetGlobalScale(obj, mat_a, mat_b, mix) # Set scale
-        if rot == True:
-            if rotMode == True:
-                SetGlobalRotation(obj, mat_a, mat_b, mix) # Set rotation
-            else:
-                SetBasicRotation(obj, obj1_, obj2_, mix)
+            if pos == True:
+                SetGlobalPosition(obj, mat_a, mat_b, mix) # Set position
+            if scl == True:
+                SetGlobalScale(obj, mat_a, mat_b, mix) # Set scale
+            if rot == True:
+                if rotMode == True:
+                    SetGlobalRotation(obj, mat_a, mat_b, mix) # Set rotation
+                else:
+                    SetBasicRotation(obj, obj1_, obj2_, mix)
     except Exception:
         logging.error(traceback.format_exc())
