@@ -2,7 +2,7 @@
 Samplistic Simple Moves
 Author: Delek Miller | Samplistic
 Original Concept: Michael Rosen | Samplistic
-Version: 1.0.0
+Version: 1.0.3
 Description: Interpolate PSR between objects in space
 
 Written for Maxon Cinema 4D 2024.4.1
