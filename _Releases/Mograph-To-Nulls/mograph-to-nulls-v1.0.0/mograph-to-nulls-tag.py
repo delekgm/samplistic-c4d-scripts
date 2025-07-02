@@ -72,9 +72,9 @@ def CreatePythonTag(obj, link_object=None):
     pyTag.SetName("Mograph to Nulls")
     
     # # Get icon
-    # scriptPath = __file__
-    # iconPath = scriptPath.rsplit('.', 1)[0]+".tif"
-    # pyTag[c4d.ID_BASELIST_ICON_FILE] = iconPath
+    scriptPath = __file__
+    iconPath = scriptPath.rsplit('.', 1)[0]+".tif"
+    pyTag[c4d.ID_BASELIST_ICON_FILE] = iconPath
     
     # Insert tag to active object
     obj.InsertTag(pyTag)
