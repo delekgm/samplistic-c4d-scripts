@@ -2,25 +2,14 @@
 Samplistic Simple Moves
 Author: Delek Miller | Samplistic
 Original Concept: Michael Rosen | Samplistic
-Version: 1.0.7
+Version: 1.0.3
 Description: Interpolate PSR between objects in space
 
-Changes in 1.0.7:
-- Softness slider now behaves intuitively:
-    0% = pure linear (sharp corners at each target)
-    100% = full centripetal Catmull-Rom (smoothest path)
-  Internally we blend between linear and centripetal-spline position
-  based on the slider value, so 0% truly feels like linear interp.
-- Added guards in the tag code to prevent log spam on edge cases
-  (single-target lists, evaluation before init).
-
-Changes in 1.0.6:
-- Replaced uniform Catmull-Rom with centripetal Catmull-Rom to
-  eliminate slow-down/pause artifacts near control points when
-  targets are unevenly spaced.
-
-Written for Maxon Cinema 4D 2025.7.3
+Written for Maxon Cinema 4D 2024.4.1
 Python version 3.11.4
+
+Change log:
+1.0.0
 """
 
 
@@ -93,7 +82,7 @@ def CreateUserDataPercentSlider(obj, name, val=0, min=0, max=1, parentGroup=None
     if obj is None: return False
     bc = c4d.GetCustomDatatypeDefault(c4d.DTYPE_REAL)
     bc[c4d.DESC_NAME] = name
-    bc[c4d.DESC_SHORT_NAME] = name
+    bc[c4d.DESC_SHORT_NAME] = "Mix"
     bc[c4d.DESC_DEFAULT] = val
     bc[c4d.DESC_ANIMATE] = c4d.DESC_ANIMATE_ON
     bc[c4d.DESC_UNIT] = unit
@@ -137,12 +126,6 @@ def CreatePythonTag(obj):
     CreateUserDataCheckbox(pyTag, "Scale", 0, groupIDMatrix)
     CreateUserDataCheckbox(pyTag, "Rotation", 1, groupIDMatrix)
     CreateUserDataCheckbox(pyTag, "Use Shortest Path Rotation", 0, groupIDMatrix)
-    
-    # Softness Settings
-    CreateUserDataCycle(pyTag, "Interpolation", "Linear, Soft", groupIDSettings)
-    # Softness: 0 = linear feel, 1 = fully smooth centripetal spline
-    CreateUserDataPercentSlider(pyTag, "Softness", 0.5, 0, 1, groupIDSettings)
-    
 
     # Python tag code
     # ---------------------------------------------------------------------
@@ -172,12 +155,6 @@ def CreatePythonTag(obj):
         "            else:\n"
         "                bc[c4d.DESC_HIDE] = True\n"
         "                op.SetUserDataContainer(descId, bc)\n"
-        "        if descId[1].id == 12:\n"
-        "           if op[c4d.ID_USERDATA, 11] == 1:\n"
-        "               bc[c4d.DESC_HIDE] = False\n"
-        "           else:\n"
-        "               bc[c4d.DESC_HIDE] = True\n"
-        "           op.SetUserDataContainer(descId, bc)\n"
         "\n"
         "\n"
         "def SetGlobalPosition(obj, mat1, mat2, factor):\n"
@@ -238,57 +215,22 @@ def CreatePythonTag(obj):
         "\n"
         "\n"
         "def clean_inexclude_userdata(op, userdata_id):\n"
-        "    data = op[userdata_id]\n"
-        "    if not isinstance(data, c4d.InExcludeData):\n"
-        "        raise TypeError('User data at ID {} is not an InExcludeData'.format(userdata_id))\n"
-        "\n"
-        "    valid_objects = []\n"
-        "    for i in range(data.GetObjectCount()):\n"
-        "        obj = data.ObjectFromIndex(doc, i)\n"
-        "        if obj is not None:\n"
-        "            flags = data.GetFlags(i)\n"
-        "            valid_objects.append(obj)\n"
-        "\n"
-        "    missing = []\n"
-        "    for i in range(data.GetObjectCount()):\n"
-        "        if data.ObjectFromIndex(doc, i) is None:\n"
-        "            missing.append(i)\n"
-        "    if not missing:\n"
-        "        return valid_objects\n"
-        "    for i in reversed(missing):\n"
-        "        data.DeleteObject(i)\n"
-        "\n"
-        "    return valid_objects\n"
-        "\n"
-        "\n"
-        "def catmull_pos_centripetal(p0, p1, p2, p3, t):\n"
-        "    # Centripetal Catmull-Rom (alpha=0.5, Barry-Goldman form).\n"
-        "    # Gives near-constant visual speed through unevenly spaced\n"
-        "    # control points and avoids loops/cusps near clustered points.\n"
-        "    eps = 1.0e-6\n"
-        "    alpha = 0.5\n"
-        "\n"
-        "    def tj(ti, pi, pj):\n"
-        "        d = (pj - pi).GetLength()\n"
-        "        if d < eps:\n"
-        "            return ti + eps\n"
-        "        return ti + math.pow(d, alpha)\n"
-        "\n"
-        "    t0 = 0.0\n"
-        "    t1 = tj(t0, p0, p1)\n"
-        "    t2 = tj(t1, p1, p2)\n"
-        "    t3 = tj(t2, p2, p3)\n"
-        "\n"
-        "    # Remap input t in [0,1] to actual parameter range [t1, t2]\n"
-        "    tt = t1 + (t2 - t1) * t\n"
-        "\n"
-        "    # Barry-Goldman pyramidal evaluation\n"
-        "    a1 = p0 * ((t1 - tt) / (t1 - t0)) + p1 * ((tt - t0) / (t1 - t0))\n"
-        "    a2 = p1 * ((t2 - tt) / (t2 - t1)) + p2 * ((tt - t1) / (t2 - t1))\n"
-        "    a3 = p2 * ((t3 - tt) / (t3 - t2)) + p3 * ((tt - t2) / (t3 - t2))\n"
-        "    b1 = a1 * ((t2 - tt) / (t2 - t0)) + a2 * ((tt - t0) / (t2 - t0))\n"
-        "    b2 = a2 * ((t3 - tt) / (t3 - t1)) + a3 * ((tt - t1) / (t3 - t1))\n"
-        "    return b1 * ((t2 - tt) / (t2 - t1)) + b2 * ((tt - t1) / (t2 - t1))\n"
+        "   doc = c4d.documents.GetActiveDocument()\n"
+        "   excl_data = op[userdata_id]\n"
+        "   if not isinstance(excl_data, c4d.InExcludeData):\n"
+        "       raise TypeError('User data at ID {} is not an InExcludeData'.format(userdata_id))\n"
+        "   clean_data = c4d.InExcludeData()\n"
+        "   valid_objects = []\n"
+        "   for i in range(excl_data.GetObjectCount()):\n"
+        "       obj = excl_data.ObjectFromIndex(doc, i)\n"
+        "       if obj is not None:\n"
+        "           flags = excl_data.GetFlags(i)\n"
+        "           clean_data.InsertObject(obj, flags)\n"
+        "           valid_objects.append(obj)\n"
+        "   if clean_data.GetObjectCount() != excl_data.GetObjectCount():\n"
+        "       op[userdata_id] = clean_data\n"
+        "       c4d.EventAdd()  # Update the UI and scene\n"
+        "   return valid_objects\n"
         "\n"
         "\n"
         "def main():\n"
@@ -302,15 +244,7 @@ def CreatePythonTag(obj):
         "        rot = op[c4d.ID_USERDATA,9] # User Data: Rotation\n"
         "        rotMode = op[c4d.ID_USERDATA, 10] # User Data: Rotation Mode\n"
         "        user_data_id = c4d.ID_USERDATA, 5\n"
-        "        objects = clean_inexclude_userdata(op, user_data_id) # User Data: Target list\n"
-        "        interp = op[c4d.ID_USERDATA, 11] # linear or soft\n"
-        "        # Softness: 0 = pure linear, 1 = full centripetal spline\n"
-        "        softness = op[c4d.ID_USERDATA, 12]\n"
-        "        if softness is None:\n"
-        "            softness = 0.5\n"
-        "        # Clamp defensively\n"
-        "        if softness < 0.0: softness = 0.0\n"
-        "        if softness > 1.0: softness = 1.0\n"
+        "        objects = clean_inexclude_userdata(op, user_data_id) # User Data: Target list"
         "\n"
         "        # Set mode to Simple Moves or Total\n"
         "        setMoveMode()\n"
@@ -339,37 +273,7 @@ def CreatePythonTag(obj):
         "            mix = data % 1 # Calculate mix value\n"
         "\n"
         "            if pos == True:\n"
-        "                if interp == 0:\n"
-        "                   SetGlobalPosition(obj, mat_a, mat_b, mix) # Set position\n"
-        "                else:\n"
-        "                    i_soft = min(i, cnt-1)\n"
-        "                    t_soft = mix if i < cnt-1 else 0.0\n"
-        "                    p0 = array[max(i_soft-1, 0  )].GetMg().off\n"
-        "                    p1 = array[i_soft            ].GetMg().off\n"
-        "                    p2 = array[min(i_soft+1,cnt-1)].GetMg().off\n"
-        "                    p3 = array[min(i_soft+2,cnt-1)].GetMg().off\n"
-        "\n"
-        "                    # Linear position between the two active targets\n"
-        "                    pos_linear = u.MixVec(p1, p2, t_soft)\n"
-        "\n"
-        "                    # Centripetal spline position (only compute if we'll use it)\n"
-        "                    if softness > 0.0:\n"
-        "                        pos_spline = catmull_pos_centripetal(p0, p1, p2, p3, t_soft)\n"
-        "                        # Blend: 0 softness = linear, 1 softness = full spline\n"
-        "                        pos_v = u.MixVec(pos_linear, pos_spline, softness)\n"
-        "                    else:\n"
-        "                        pos_v = pos_linear\n"
-        "\n"
-        "                    m = obj.GetMg()\n"
-        "                    m.off = pos_v\n"
-        "                    obj.SetMg(m)\n"
-        "\n"
-        "                    # update soft interpolation for scale and rotation\n"
-        "                    mix = t_soft\n"
-        "                    mat_a = array[i_soft].GetMg()\n"
-        "                    mat_b = array[min(i_soft+1, cnt-1)].GetMg()\n"
-        "                    obj1_ = array[i_soft]\n"
-        "                    obj2_ = array[min(i_soft+1, cnt-1)]\n"
+        "                SetGlobalPosition(obj, mat_a, mat_b, mix) # Set position\n"
         "            if scl == True:\n"
         "                SetGlobalScale(obj, mat_a, mat_b, mix) # Set scale\n"
         "            if rot == True:\n"
