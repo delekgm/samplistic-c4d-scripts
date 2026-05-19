@@ -2,10 +2,10 @@
 Samplistic Simple Moves
 Author: Delek Miller | Samplistic
 Original Concept: Michael Rosen | Samplistic
-Version: 1.0.7
+Version: 1.0.6
 Description: Interpolate PSR between objects in space
 
-Changes in 1.0.7:
+Changes in 1.0.6:
 - Softness slider now behaves intuitively:
     0% = pure linear (sharp corners at each target)
     100% = full centripetal Catmull-Rom (smoothest path)
@@ -14,7 +14,6 @@ Changes in 1.0.7:
 - Added guards in the tag code to prevent log spam on edge cases
   (single-target lists, evaluation before init).
 
-Changes in 1.0.6:
 - Replaced uniform Catmull-Rom with centripetal Catmull-Rom to
   eliminate slow-down/pause artifacts near control points when
   targets are unevenly spaced.
